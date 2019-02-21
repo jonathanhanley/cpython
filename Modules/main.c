@@ -1664,7 +1664,7 @@ pymain_run_python(_PyMain *pymain, PyInterpreterState *interp)
         Py_DECREF(path0);
     }
 
-    PyCompilerFlags cf = {.cf_flags = 0};
+    PyCompilerFlags cf = {.cf_flags = 0, .cf_feature_version = PY_MINOR_VERSION};
 
     pymain_header(pymain, config);
     pymain_import_readline(pymain, config);

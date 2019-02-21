@@ -566,6 +566,7 @@ struct compiling {
     PyArena *c_arena; /* Arena for allocating memory. */
     PyObject *c_filename; /* filename */
     PyObject *c_normalize; /* Normalization function from unicodedata. */
+    int c_feature_version; /* Latest minor version of Python for allowed features */
 };
 
 static asdl_seq *seq_for_testlist(struct compiling *, const node *);
@@ -785,6 +786,7 @@ PyAST_FromNodeObject(const node *n, PyCompilerFlags *flags,
     /* borrowed reference */
     c.c_filename = filename;
     c.c_normalize = NULL;
+    c.c_feature_version = flags->cf_feature_version;
 
     if (TYPE(n) == encoding_decl)
         n = CHILD(n, 0);
@@ -957,7 +959,7 @@ PyAST_FromNode(const node *n, PyCompilerFlags *flags, const char *filename_str,
 */
 
 static operator_ty
-get_operator(const node *n)
+get_operator(struct compiling *c, const node *n)
 {
     switch (TYPE(n)) {
         case VBAR:
@@ -977,6 +979,11 @@ get_operator(const node *n)
         case STAR:
             return Mult;
         case AT:
+            if (c->c_feature_version < 5) {
+                ast_error(c, n,
+                        "The '@' operator is only supported in Python 3.5 and greater");
+                return (operator_ty)0;
+            }
             return MatMult;
         case SLASH:
             return Div;
@@ -2543,7 +2550,7 @@ ast_for_binop(struct compiling *c, const node *n)
     if (!expr2)
         return NULL;
 
-    newoperator = get_operator(CHILD(n, 1));
+    newoperator = get_operator(c, CHILD(n, 1));
     if (!newoperator)
         return NULL;
 
@@ -2558,7 +2565,7 @@ ast_for_binop(struct compiling *c, const node *n)
         expr_ty tmp_result, tmp;
         const node* next_oper = CHILD(n, i * 2 + 1);
 
-        newoperator = get_operator(next_oper);
+        newoperator = get_operator(c, next_oper);
         if (!newoperator)
             return NULL;
 
@@ -4787,6 +4794,7 @@ fstring_compile_expr(const char *expr_start, const char *expr_end,
     str[len+2] = 0;
 
     cf.cf_flags = PyCF_ONLY_AST;
+    cf.cf_feature_version = PY_MINOR_VERSION;
     mod_n = PyParser_SimpleParseStringFlagsFilename(str, "<fstring>",
                                                     Py_eval_input, 0);
     if (!mod_n) {
