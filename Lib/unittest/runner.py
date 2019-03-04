@@ -207,7 +207,7 @@ class TextTestRunner(object):
             if errored:
                 infos.append("errors=%d" % errored)
         else:
-            self.stream.write("OK")
+            self.stream.write("You passed 😃")
         if skipped:
             infos.append("skipped=%d" % skipped)
         if expectedFails:
